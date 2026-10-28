@@ -1,5 +1,5 @@
-import { Canvas } from "@react-three/fiber";
-import { Suspense, useMemo } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three/webgpu";
 // import useAppStore from "../../../stores/useAppStore";
 import BasicBoundsBoxBaybee from "../../misc/BasicBoundsBoxBaybee";
@@ -9,41 +9,82 @@ import DebugOrbitControls from "../../misc/DebugOrbitControls";
 // import Digits from "./Digits";
 // import Hand from "./Hand";
 import { useNodes, useUniforms } from "@react-three/tsl";
-import { Fn, mx_noise_float, time, vec3 } from "three/tsl";
+import {
+  cross,
+  dot,
+  Fn,
+  mx_noise_float,
+  normalLocal,
+  positionLocal,
+  pow,
+  smoothstep,
+  tangentLocal,
+  time,
+  vec3,
+} from "three/tsl";
 import Orb from "./Orb";
+import { type NodesType } from "./types/types.tsx";
 
-function GlobalEffects() {
-  useNodes(({ uniforms }) => ({
-    getWobble: Fn(
-      ({
-        pos,
-        steppedToCameraAmount,
-      }: {
-        pos: THREE.Node<"vec3">;
-        steppedToCameraAmount: THREE.Node<"float">;
-      }) => {
-        const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015)));
-        const wobble = mx_noise_float(
-          adjustedPos.mul(uniforms.uBasePosFreq),
-          time.mul(uniforms.uBaseTimeFreq),
-        ).mul(uniforms.uBaseStrength);
-        wobble.mulAssign(steppedToCameraAmount.mul(0.5));
-        wobble.addAssign(0.5);
-        return wobble;
-      },
-      {
-        pos: "vec3",
-        steppedToCameraAmount: "float",
-        return: "float",
-      },
-    ),
-  }));
-  return null;
-}
+// function GlobalEffects() {
+//   useNodes(({ uniforms }) => ({
+//     getWobble: Fn(
+//       ({
+//         pos,
+//         steppedToCameraAmount,
+//       }: {
+//         pos: THREE.Node<"vec3">;
+//         steppedToCameraAmount: THREE.Node<"float">;
+//       }) => {
+//         const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015)));
+//         const wobble = mx_noise_float(
+//           adjustedPos.mul(uniforms.uBasePosFreq),
+//           time.mul(uniforms.uBaseTimeFreq),
+//         ).mul(uniforms.uBaseStrength);
+//         wobble.mulAssign(steppedToCameraAmount.mul(0.5));
+//         wobble.addAssign(0.5);
+//         return wobble;
+//       },
+//       {
+//         pos: "vec3",
+//         steppedToCameraAmount: "float",
+//         return: "float",
+//       },
+//     ),
+//   }));
+//   return null;
+// }
 
-function ArchdukeVonOrben() {
-  // const formatHours24 = useAppStore((state) => state.formatHours24);
-  const uniforms = useUniforms({
+// function ArchdukeVonOrben() {
+//   // const formatHours24 = useAppStore((state) => state.formatHours24);
+//   return (
+//     <>
+//       {/* <GlobalEffects /> */}
+//       <Orb position={[0, 0, -2.3]} />
+//       {/* <Hand
+//         hms="s"
+//         radius={1.3}
+//         color={"#deeadd"}
+//         formatHours24={formatHours24}
+//       />
+//       <Hand
+//         hms="m"
+//         radius={1.0}
+//         color={"#deeadd"}
+//         formatHours24={formatHours24}
+//       />
+//       <Hand
+//         hms="h"
+//         radius={0.7}
+//         color={"#deeadd"}
+//         formatHours24={formatHours24}
+//       />
+//       <Digits position={[0, 0.09, 1]} /> */}
+//     </>
+//   );
+// }
+
+function Scene() {
+  const uniforms = useUniforms(() => ({
     // Orb
     orbMass: 5000.0,
     orbDecayFactor: 0.08,
@@ -67,45 +108,111 @@ function ArchdukeVonOrben() {
     uSBasePosFreq: 3.28,
     uSBaseTimeFreq: 0.08,
     uSBaseStrength: 0.04,
+  }));
+
+  const renderer = useThree((state) => state.renderer);
+
+  useEffect(() => {
+    // @ts-expect-error `createParameters` does exist.
+    const gui = renderer.inspector?.createParameters("Orb");
+    gui.add(uniforms.orbMass, "value", 0, 10000, 1).name("orbMass");
+    gui
+      .add(uniforms.orbDecayFactor, "value", 0, 1, 0.001)
+      .name("orbDecayFactor");
+    gui.add(uniforms.uBasePosFreq, "value", 0, 5, 0.01).name("uBasePosFreq");
+    gui.add(uniforms.uBaseTimeFreq, "value", 0, 5, 0.01).name("uBaseTimeFreq");
+    gui.add(uniforms.uBaseStrength, "value", 0, 5, 0.01).name("uBaseStrength");
+    gui.add(uniforms.uHBasePosFreq, "value", 0, 5, 0.01).name("uHBasePosFreq");
+    gui
+      .add(uniforms.uHBaseTimeFreq, "value", 0, 5, 0.01)
+      .name("uHBaseTimeFreq");
+    gui
+      .add(uniforms.uHBaseStrength, "value", 0, 5, 0.01)
+      .name("uHBaseStrength");
+    gui.add(uniforms.uMBasePosFreq, "value", 0, 5, 0.01).name("uMBasePosFreq");
+    gui
+      .add(uniforms.uMBaseTimeFreq, "value", 0, 5, 0.01)
+      .name("uMBaseTimeFreq");
+    gui
+      .add(uniforms.uMBaseStrength, "value", 0, 5, 0.01)
+      .name("uMBaseStrength");
+    gui.add(uniforms.uSBasePosFreq, "value", 0, 5, 0.01).name("uSBasePosFreq");
+    gui
+      .add(uniforms.uSBaseTimeFreq, "value", 0, 5, 0.01)
+      .name("uSBaseTimeFreq");
+    gui
+      .add(uniforms.uSBaseStrength, "value", 0, 5, 0.01)
+      .name("uSBaseStrength");
+
+    return () => gui.destroy?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderer]);
+
+  const nodes: NodesType = useNodes(() => {
+    const biTangent = cross(normalLocal, tangentLocal);
+
+    // Neighbor positions
+    const toCameraAmount = dot(normalLocal, vec3(0, 0, 1))
+      .mul(0.5)
+      .add(0.5);
+    const steppedToCameraAmount = smoothstep(
+      0.98,
+      0.89,
+      pow(toCameraAmount, 2),
+    );
+
+    const getWobble = Fn(
+      ({
+        pos,
+        steppedToCameraAmount,
+      }: {
+        pos: THREE.Node<"vec3">;
+        steppedToCameraAmount: THREE.Node<"float">;
+      }) => {
+        const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015))).toVar();
+        const wobble = mx_noise_float(
+          adjustedPos.mul(uniforms.uBasePosFreq),
+          time.mul(uniforms.uBaseTimeFreq),
+        ).mul(uniforms.uBaseStrength);
+        wobble.mulAssign(steppedToCameraAmount.mul(0.5));
+        wobble.addAssign(0.5);
+        return wobble;
+      },
+      {
+        pos: "vec3",
+        steppedToCameraAmount: "float",
+        return: "float",
+      },
+    );
+
+    const positionNode = positionLocal.add(
+      normalLocal.mul(
+        getWobble({
+          pos: positionLocal,
+          steppedToCameraAmount: steppedToCameraAmount,
+        }),
+      ),
+    );
+
+    return {
+      positionNode: positionNode,
+    };
   });
+
   return (
     <>
-      <GlobalEffects />
-      <Orb position={[0, 0, -2.3]} />
-      {/* <Hand
-        hms="s"
-        radius={1.3}
-        color={"#deeadd"}
-        formatHours24={formatHours24}
-      />
-      <Hand
-        hms="m"
-        radius={1.0}
-        color={"#deeadd"}
-        formatHours24={formatHours24}
-      />
-      <Hand
-        hms="h"
-        radius={0.7}
-        color={"#deeadd"}
-        formatHours24={formatHours24}
-      />
-      <Digits position={[0, 0.09, 1]} /> */}
+      <Suspense fallback={null}>
+        <ambientLight intensity={0.5} />
+        <Orb position={[0, 0, -2.3]} nodes={nodes} />
+      </Suspense>
+      <BasicBoundsBoxBaybee boxArgs={[3.0, 3.0, 1.25]} />
+      <DebugOrbitControls minDistance={10} maxDistance={50} enableRotate />
+      <directionalLight position={[10, 10, 10]} intensity={1} />
     </>
   );
 }
 
 export default function ArchdukeVonOrbenScene() {
-  const cameraLayers = useMemo(() => {
-    const layers = new THREE.Layers();
-    layers.set(1);
-    return layers;
-  }, []);
-  const allLayers = useMemo(() => {
-    const layers = new THREE.Layers();
-    layers.enableAll();
-    return layers;
-  }, []);
   const inspector = useMemo(() => {
     console.log("Creating inspector");
     const inspector = new Inspector();
@@ -120,7 +227,7 @@ export default function ArchdukeVonOrbenScene() {
           position: [0, -2, 35],
           rotation: [0.05, 0, 0],
           fov: 8,
-          layers: cameraLayers,
+          // layers: cameraLayers,
         }}
         style={{
           touchAction: "none",
@@ -129,17 +236,7 @@ export default function ArchdukeVonOrbenScene() {
           inspector: inspector,
         }}
       >
-        {/* <CustomStatsComponent /> */}
-        <Suspense fallback={null}>
-          {/* <Environment
-            files="./environments/warm_reception_dinner_1k.hdr"
-            resolution={1024}
-          /> */}
-          <ambientLight intensity={0.5} layers={allLayers} />
-          <ArchdukeVonOrben />
-        </Suspense>
-        <BasicBoundsBoxBaybee boxArgs={[3.0, 3.0, 1.25]} />
-        <DebugOrbitControls minDistance={10} maxDistance={50} enableRotate />
+        <Scene />
       </Canvas>
       {/* <Loader /> */}
     </>

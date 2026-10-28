@@ -1,18 +1,18 @@
-import { useThree } from "@react-three/fiber";
-import { useLocalNodes, useUniforms } from "@react-three/tsl";
 import { useSpring } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { normalLocal, positionLocal } from "three/tsl";
 import * as THREE from "three/webgpu";
 import useAppStore from "../../../stores/useAppStore";
 import { SPRING_CONFIGS } from "./constants/constants";
 import useArchdukeVonOrbenStore from "./stores/useArchdukeVonOrbenStore";
+import type { NodesType } from "./types/types.tsx";
 
 export default function Orb({
   position = [0, 0, 0],
+  nodes,
 }: {
   position?: [number, number, number];
+  nodes: NodesType;
 }) {
   const formatHours24 = useAppStore((state) => state.formatHours24);
   // const reflectorRef = useRef<THREE.Mesh>(null!);
@@ -26,52 +26,6 @@ export default function Orb({
     return geometry;
   }, []);
 
-  const uniforms = useUniforms();
-  console.log("uniforms", uniforms);
-
-  const renderer = useThree((state) => state.renderer);
-
-  useEffect(() => {
-    // @ts-expect-error `createParameters` does exist.
-    const gui = renderer.inspector?.createParameters("Orb");
-    gui.add(uniforms.orbMass, "value", 0, 10000, 1).name("orbMass");
-    gui
-      .add(uniforms.orbDecayFactor, "value", 0, 1, 0.001)
-      .name("orbDecayFactor");
-    gui.add(uniforms.uBasePosFreq, "value", 0, 5, 0.01).name("uBasePosFreq");
-    gui.add(uniforms.uBaseTimeFreq, "value", 0, 5, 0.01).name("uBaseTimeFreq");
-    gui.add(uniforms.uBaseStrength, "value", 0, 5, 0.01).name("uBaseStrength");
-    gui.add(uniforms.uHBasePosFreq, "value", 0, 5, 0.01).name("uHBasePosFreq");
-    gui
-      .add(uniforms.uHBaseTimeFreq, "value", 0, 5, 0.01)
-      .name("uHBaseTimeFreq");
-    gui
-      .add(uniforms.uHBaseStrength, "value", 0, 5, 0.01)
-      .name("uHBaseStrength");
-    gui.add(uniforms.uMBasePosFreq, "value", 0, 5, 0.01).name("uMBasePosFreq");
-    gui
-      .add(uniforms.uMBaseTimeFreq, "value", 0, 5, 0.01)
-      .name("uMBaseTimeFreq");
-    gui
-      .add(uniforms.uMBaseStrength, "value", 0, 5, 0.01)
-      .name("uMBaseStrength");
-    gui.add(uniforms.uSBasePosFreq, "value", 0, 5, 0.01).name("uSBasePosFreq");
-    gui
-      .add(uniforms.uSBaseTimeFreq, "value", 0, 5, 0.01)
-      .name("uSBaseTimeFreq");
-    gui
-      .add(uniforms.uSBaseStrength, "value", 0, 5, 0.01)
-      .name("uSBaseStrength");
-
-    return () => gui.destroy?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renderer]);
-
-  const orbLayers = useMemo(() => {
-    const layers = new THREE.Layers();
-    layers.set(1);
-    return layers;
-  }, []);
   // const reflectorLayers = useMemo(() => {
   //   const layers = new THREE.Layers();
   //   return layers;
@@ -141,30 +95,11 @@ export default function Orb({
     };
   }, [formatHours24, hSpringLocal, mSpringLocal, sSpringLocal]);
 
-  const { positionNode } = useLocalNodes(
-    ({ nodes }) => {
-      console.log(nodes.keys());
-      console.log(nodes.getWobble);
-      return {
-        positionNode: positionLocal.add(
-          normalLocal.mul(nodes.getWobble(positionLocal, 1)),
-        ),
-      };
-    },
-    [uniforms],
-  );
-
   return (
     <>
       <group position={position}>
-        <mesh
-          ref={orbRef}
-          geometry={orbGeometry}
-          castShadow
-          receiveShadow
-          layers={orbLayers}
-        >
-          <meshPhysicalNodeMaterial positionNode={positionNode} />
+        <mesh ref={orbRef} geometry={orbGeometry} castShadow receiveShadow>
+          <meshPhysicalNodeMaterial positionNode={nodes.positionNode} />
         </mesh>
       </group>
     </>
