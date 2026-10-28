@@ -14,6 +14,7 @@ import {
   dot,
   Fn,
   mx_noise_float,
+  normalize,
   normalLocal,
   positionLocal,
   pow,
@@ -24,64 +25,6 @@ import {
 } from "three/tsl";
 import Orb from "./Orb";
 import { type NodesType } from "./types/types.tsx";
-
-// function GlobalEffects() {
-//   useNodes(({ uniforms }) => ({
-//     getWobble: Fn(
-//       ({
-//         pos,
-//         steppedToCameraAmount,
-//       }: {
-//         pos: THREE.Node<"vec3">;
-//         steppedToCameraAmount: THREE.Node<"float">;
-//       }) => {
-//         const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015)));
-//         const wobble = mx_noise_float(
-//           adjustedPos.mul(uniforms.uBasePosFreq),
-//           time.mul(uniforms.uBaseTimeFreq),
-//         ).mul(uniforms.uBaseStrength);
-//         wobble.mulAssign(steppedToCameraAmount.mul(0.5));
-//         wobble.addAssign(0.5);
-//         return wobble;
-//       },
-//       {
-//         pos: "vec3",
-//         steppedToCameraAmount: "float",
-//         return: "float",
-//       },
-//     ),
-//   }));
-//   return null;
-// }
-
-// function ArchdukeVonOrben() {
-//   // const formatHours24 = useAppStore((state) => state.formatHours24);
-//   return (
-//     <>
-//       {/* <GlobalEffects /> */}
-//       <Orb position={[0, 0, -2.3]} />
-//       {/* <Hand
-//         hms="s"
-//         radius={1.3}
-//         color={"#deeadd"}
-//         formatHours24={formatHours24}
-//       />
-//       <Hand
-//         hms="m"
-//         radius={1.0}
-//         color={"#deeadd"}
-//         formatHours24={formatHours24}
-//       />
-//       <Hand
-//         hms="h"
-//         radius={0.7}
-//         color={"#deeadd"}
-//         formatHours24={formatHours24}
-//       />
-//       <Digits position={[0, 0.09, 1]} /> */}
-//     </>
-//   );
-// }
 
 function Scene() {
   const uniforms = useUniforms(() => ({
@@ -152,6 +95,15 @@ function Scene() {
     const biTangent = cross(normalLocal, tangentLocal);
 
     // Neighbor positions
+    const shift = 0.01;
+    let positionNode: THREE.Node<"vec3"> = positionLocal;
+    let positionA: THREE.Node<"vec3"> = positionLocal.add(
+      tangentLocal.mul(shift),
+    );
+    let positionB: THREE.Node<"vec3"> = positionLocal.add(biTangent.mul(shift));
+
+    // For calculating the amount the surface is facing the (static) camera.
+    // Doesn't actually reference the camera's position (currently).
     const toCameraAmount = dot(normalLocal, vec3(0, 0, 1))
       .mul(0.5)
       .add(0.5);
@@ -160,7 +112,10 @@ function Scene() {
       0.89,
       pow(toCameraAmount, 2),
     );
+    steppedToCameraAmount.toVarying("vSteppedToCameraAmount");
 
+    // Wobble
+    // Honestly, maybe this function should be declared somewhere else?
     const getWobble = Fn(
       ({
         pos,
@@ -169,13 +124,15 @@ function Scene() {
         pos: THREE.Node<"vec3">;
         steppedToCameraAmount: THREE.Node<"float">;
       }) => {
-        const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015))).toVar();
+        const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015)));
         const wobble = mx_noise_float(
           adjustedPos.mul(uniforms.uBasePosFreq),
           time.mul(uniforms.uBaseTimeFreq),
         ).mul(uniforms.uBaseStrength);
+
         wobble.mulAssign(steppedToCameraAmount.mul(0.5));
         wobble.addAssign(0.5);
+
         return wobble;
       },
       {
@@ -185,17 +142,32 @@ function Scene() {
       },
     );
 
-    const positionNode = positionLocal.add(
-      normalLocal.mul(
-        getWobble({
-          pos: positionLocal,
-          steppedToCameraAmount: steppedToCameraAmount,
-        }),
-      ),
-    );
+    const wobble = getWobble({
+      pos: positionLocal,
+      steppedToCameraAmount: steppedToCameraAmount,
+    });
+    positionNode = positionNode.add(wobble.mul(normalLocal));
+
+    const positionAWobble = getWobble({
+      pos: positionA,
+      steppedToCameraAmount: steppedToCameraAmount,
+    });
+    positionA = positionA.add(positionAWobble.mul(normalLocal));
+
+    const positionBWobble = getWobble({
+      pos: positionB,
+      steppedToCameraAmount: steppedToCameraAmount,
+    });
+    positionB = positionB.add(positionBWobble.mul(normalLocal));
+
+    // Compute normal
+    const toA = normalize(positionA.sub(positionNode));
+    const toB = normalize(positionB.sub(positionNode));
+    const normalNode = cross(toA, toB);
 
     return {
       positionNode: positionNode,
+      normalNode: normalNode,
     };
   });
 
