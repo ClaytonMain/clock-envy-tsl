@@ -99,9 +99,10 @@ export default function Orb({
     <>
       <group position={position}>
         <mesh ref={orbRef} geometry={orbGeometry} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial
+          <meshStandardNodeMaterial
             positionNode={nodes.positionNode}
             normalNode={nodes.normalNode}
+            colorNode={nodes.colorNode}
           />
         </mesh>
       </group>

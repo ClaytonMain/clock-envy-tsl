@@ -1,4 +1,4 @@
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three/webgpu";
 // import useAppStore from "../../../stores/useAppStore";
@@ -20,7 +20,6 @@ import {
   pow,
   smoothstep,
   tangentLocal,
-  time,
   vec3,
 } from "three/tsl";
 import Orb from "./Orb";
@@ -32,7 +31,7 @@ function Scene() {
     orbMass: 5000.0,
     orbDecayFactor: 0.08,
     // Misc.
-    uTime: 0.0,
+    uTimeTime: 0.00002,
     uBasePosFreq: 3.15,
     uBaseTimeFreq: 0.02,
     uBaseStrength: 0.06,
@@ -51,6 +50,8 @@ function Scene() {
     uSBasePosFreq: 3.28,
     uSBaseTimeFreq: 0.08,
     uSBaseStrength: 0.04,
+    // More misc.
+    uShift: 0.01,
   }));
 
   const renderer = useThree((state) => state.renderer);
@@ -86,21 +87,28 @@ function Scene() {
     gui
       .add(uniforms.uSBaseStrength, "value", 0, 5, 0.01)
       .name("uSBaseStrength");
+    gui.add(uniforms.uShift, "value", 0, 0.1, 0.0001).name("uShift");
 
     return () => gui.destroy?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderer]);
 
   const nodes: NodesType = useNodes(() => {
-    const biTangent = cross(normalLocal, tangentLocal);
+    const normTangent = normalize(tangentLocal);
+    const biTangent = normalize(cross(normalLocal, normTangent));
+
+    const biTangentDebug = biTangent;
 
     // Neighbor positions
-    const shift = 0.01;
+    const shift = uniforms.uShift;
     let positionNode: THREE.Node<"vec3"> = positionLocal;
     let positionA: THREE.Node<"vec3"> = positionLocal.add(
-      tangentLocal.mul(shift),
+      normTangent.mul(shift),
     );
     let positionB: THREE.Node<"vec3"> = positionLocal.add(biTangent.mul(shift));
+
+    const positionANormal = normalize(positionA);
+    const positionBNormal = normalize(positionB);
 
     // For calculating the amount the surface is facing the (static) camera.
     // Doesn't actually reference the camera's position (currently).
@@ -124,10 +132,11 @@ function Scene() {
         pos: THREE.Node<"vec3">;
         steppedToCameraAmount: THREE.Node<"float">;
       }) => {
-        const adjustedPos = pos.add(vec3(0, 0, time.mul(0.015)));
+        const adjustedPos = pos.add(
+          vec3(0, 0, uniforms.uTimeTime.mul(uniforms.uBaseTimeFreq.mul(0.15))),
+        );
         const wobble = mx_noise_float(
           adjustedPos.mul(uniforms.uBasePosFreq),
-          time.mul(uniforms.uBaseTimeFreq),
         ).mul(uniforms.uBaseStrength);
 
         wobble.mulAssign(steppedToCameraAmount.mul(0.5));
@@ -152,23 +161,28 @@ function Scene() {
       pos: positionA,
       steppedToCameraAmount: steppedToCameraAmount,
     });
-    positionA = positionA.add(positionAWobble.mul(normalLocal));
+    positionA = positionA.add(positionAWobble.mul(positionANormal));
 
     const positionBWobble = getWobble({
       pos: positionB,
       steppedToCameraAmount: steppedToCameraAmount,
     });
-    positionB = positionB.add(positionBWobble.mul(normalLocal));
+    positionB = positionB.add(positionBWobble.mul(positionBNormal));
 
     // Compute normal
-    const toA = normalize(positionA.sub(positionNode));
-    const toB = normalize(positionB.sub(positionNode));
-    const normalNode = cross(toA, toB);
+    const toA = positionA.sub(positionNode).normalize();
+    const toB = positionB.sub(positionNode).normalize();
+    const normalNode = cross(toA, toB).normalize();
 
     return {
       positionNode: positionNode,
       normalNode: normalNode,
+      colorNode: normalLocal,
     };
+  });
+
+  useFrame((state) => {
+    state.uniforms.uTimeTime.value = state.elapsed;
   });
 
   return (
@@ -179,7 +193,7 @@ function Scene() {
       </Suspense>
       <BasicBoundsBoxBaybee boxArgs={[3.0, 3.0, 1.25]} />
       <DebugOrbitControls minDistance={10} maxDistance={50} enableRotate />
-      <directionalLight position={[10, 10, 10]} intensity={1} />
+      <directionalLight position={[10, 10, 10]} intensity={1} castShadow />
     </>
   );
 }
@@ -206,6 +220,15 @@ export default function ArchdukeVonOrbenScene() {
         }}
         renderer={{
           inspector: inspector,
+          // shadowMap: {
+          //   enabled: true,
+          //   type: THREE.PCFShadowMap,
+          //   transmitted: true,
+          // },
+          // shadows: {
+          //   enabled: true,
+          //   type: THREE.PCFShadowMap,
+          // },
         }}
       >
         <Scene />
