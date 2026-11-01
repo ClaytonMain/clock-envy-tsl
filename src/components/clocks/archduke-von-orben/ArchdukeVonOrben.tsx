@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three/webgpu";
 // import useAppStore from "../../../stores/useAppStore";
@@ -9,50 +9,56 @@ import DebugOrbitControls from "../../misc/DebugOrbitControls";
 // import Digits from "./Digits";
 // import Hand from "./Hand";
 import { useNodes, useUniforms } from "@react-three/tsl";
-import {
-  cross,
-  dot,
-  Fn,
-  mx_noise_float,
-  normalize,
-  normalLocal,
-  positionLocal,
-  pow,
-  smoothstep,
-  tangentLocal,
-  vec3,
-} from "three/tsl";
+
+// import {
+//   cross,
+//   dot,
+//   Fn,
+//   mx_noise_float,
+//   normalize,
+//   normalLocal,
+//   positionLocal,
+//   pow,
+//   smoothstep,
+//   tangentLocal,
+//   vec3,
+// } from "three/tsl";
 import Orb from "./Orb";
-import { type NodesType } from "./types/types.tsx";
+// TEMP baseline check: switch back to the untouched original node graph to
+// distinguish renderer startup problems from the experimental node graph.
+import { makeOrbNodes, makeOrbUniforms } from "./orbNodes";
+// import { type NodesType } from "./types/types.tsx";
 
 function Scene() {
-  const uniforms = useUniforms(() => ({
-    // Orb
-    orbMass: 5000.0,
-    orbDecayFactor: 0.08,
-    // Misc.
-    uTimeTime: 0.00002,
-    uBasePosFreq: 3.15,
-    uBaseTimeFreq: 0.02,
-    uBaseStrength: 0.06,
-    // Hour
-    uHTime: 0.0,
-    uHBasePosFreq: 0.48,
-    uHBaseTimeFreq: 0.08,
-    uHBaseStrength: 0.04,
-    // Minute
-    uMTime: 0.0,
-    uMBasePosFreq: 1.06,
-    uMBaseTimeFreq: 0.08,
-    uMBaseStrength: 0.04,
-    // Second
-    uSTime: 0.0,
-    uSBasePosFreq: 3.28,
-    uSBaseTimeFreq: 0.08,
-    uSBaseStrength: 0.04,
-    // More misc.
-    uShift: 0.01,
-  }));
+  // const uniforms = useUniforms(() => ({
+  //   // Orb
+  //   orbMass: 5000.0,
+  //   orbDecayFactor: 0.08,
+  //   // Misc.
+  //   uTimeTime: 0.00002,
+  //   uBasePosFreq: 3.15,
+  //   uBaseTimeFreq: 0.02,
+  //   uBaseStrength: 0.06,
+  //   // Hour
+  //   uHTime: 0.0,
+  //   uHBasePosFreq: 0.48,
+  //   uHBaseTimeFreq: 0.08,
+  //   uHBaseStrength: 0.04,
+  //   // Minute
+  //   uMTime: 0.0,
+  //   uMBasePosFreq: 1.06,
+  //   uMBaseTimeFreq: 0.08,
+  //   uMBaseStrength: 0.04,
+  //   // Second
+  //   uSTime: 0.0,
+  //   uSBasePosFreq: 3.28,
+  //   uSBaseTimeFreq: 0.08,
+  //   uSBaseStrength: 0.04,
+  //   // More misc.
+  //   uShift: 0.01,
+  // }));
+
+  const uniforms = useUniforms(() => makeOrbUniforms());
 
   const renderer = useThree((state) => state.renderer);
 
@@ -93,103 +99,105 @@ function Scene() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderer]);
 
-  const nodes: NodesType = useNodes(() => {
-    const normTangent = normalize(tangentLocal);
-    const biTangent = normalize(cross(normalLocal, normTangent));
+  // const nodes: NodesType = useNodes(() => {
+  //   const normTangent = normalize(tangentLocal);
+  //   const biTangent = normalize(cross(normalLocal, normTangent));
 
-    const biTangentDebug = biTangent;
+  //   const biTangentDebug = biTangent;
 
-    // Neighbor positions
-    const shift = uniforms.uShift;
-    let positionNode: THREE.Node<"vec3"> = positionLocal;
-    let positionA: THREE.Node<"vec3"> = positionLocal.add(
-      normTangent.mul(shift),
-    );
-    let positionB: THREE.Node<"vec3"> = positionLocal.add(biTangent.mul(shift));
+  //   // Neighbor positions
+  //   const shift = uniforms.uShift;
+  //   let positionNode: THREE.Node<"vec3"> = positionLocal;
+  //   let positionA: THREE.Node<"vec3"> = positionLocal.add(
+  //     normTangent.mul(shift),
+  //   );
+  //   let positionB: THREE.Node<"vec3"> = positionLocal.add(biTangent.mul(shift));
 
-    const positionANormal = normalize(positionA);
-    const positionBNormal = normalize(positionB);
+  //   const positionANormal = normalize(positionA);
+  //   const positionBNormal = normalize(positionB);
 
-    // For calculating the amount the surface is facing the (static) camera.
-    // Doesn't actually reference the camera's position (currently).
-    const toCameraAmount = dot(normalLocal, vec3(0, 0, 1))
-      .mul(0.5)
-      .add(0.5);
-    const steppedToCameraAmount = smoothstep(
-      0.98,
-      0.89,
-      pow(toCameraAmount, 2),
-    );
-    steppedToCameraAmount.toVarying("vSteppedToCameraAmount");
+  //   // For calculating the amount the surface is facing the (static) camera.
+  //   // Doesn't actually reference the camera's position (currently).
+  //   const toCameraAmount = dot(normalLocal, vec3(0, 0, 1))
+  //     .mul(0.5)
+  //     .add(0.5);
+  //   const steppedToCameraAmount = smoothstep(
+  //     0.98,
+  //     0.89,
+  //     pow(toCameraAmount, 2),
+  //   );
+  //   steppedToCameraAmount.toVarying("vSteppedToCameraAmount");
 
-    // Wobble
-    // Honestly, maybe this function should be declared somewhere else?
-    const getWobble = Fn(
-      ({
-        pos,
-        steppedToCameraAmount,
-      }: {
-        pos: THREE.Node<"vec3">;
-        steppedToCameraAmount: THREE.Node<"float">;
-      }) => {
-        const adjustedPos = pos.add(
-          vec3(0, 0, uniforms.uTimeTime.mul(uniforms.uBaseTimeFreq.mul(0.15))),
-        );
-        const wobble = mx_noise_float(
-          adjustedPos.mul(uniforms.uBasePosFreq),
-        ).mul(uniforms.uBaseStrength);
+  //   // Wobble
+  //   // Honestly, maybe this function should be declared somewhere else?
+  //   const getWobble = Fn(
+  //     ({
+  //       pos,
+  //       steppedToCameraAmount,
+  //     }: {
+  //       pos: THREE.Node<"vec3">;
+  //       steppedToCameraAmount: THREE.Node<"float">;
+  //     }) => {
+  //       const adjustedPos = pos.add(
+  //         vec3(0, 0, uniforms.uTimeTime.mul(uniforms.uBaseTimeFreq.mul(0.15))),
+  //       );
+  //       const wobble = mx_noise_float(
+  //         adjustedPos.mul(uniforms.uBasePosFreq),
+  //       ).mul(uniforms.uBaseStrength);
 
-        wobble.mulAssign(steppedToCameraAmount.mul(0.5));
-        wobble.addAssign(0.5);
+  //       wobble.mulAssign(steppedToCameraAmount.mul(0.5));
+  //       wobble.addAssign(0.5);
 
-        return wobble;
-      },
-      {
-        pos: "vec3",
-        steppedToCameraAmount: "float",
-        return: "float",
-      },
-    );
+  //       return wobble;
+  //     },
+  //     {
+  //       pos: "vec3",
+  //       steppedToCameraAmount: "float",
+  //       return: "float",
+  //     },
+  //   );
 
-    const wobble = getWobble({
-      pos: positionLocal,
-      steppedToCameraAmount: steppedToCameraAmount,
-    });
-    positionNode = positionNode.add(wobble.mul(normalLocal));
+  //   const wobble = getWobble({
+  //     pos: positionLocal,
+  //     steppedToCameraAmount: steppedToCameraAmount,
+  //   });
+  //   positionNode = positionNode.add(wobble.mul(normalLocal));
 
-    const positionAWobble = getWobble({
-      pos: positionA,
-      steppedToCameraAmount: steppedToCameraAmount,
-    });
-    positionA = positionA.add(positionAWobble.mul(positionANormal));
+  //   const positionAWobble = getWobble({
+  //     pos: positionA,
+  //     steppedToCameraAmount: steppedToCameraAmount,
+  //   });
+  //   positionA = positionA.add(positionAWobble.mul(positionANormal));
 
-    const positionBWobble = getWobble({
-      pos: positionB,
-      steppedToCameraAmount: steppedToCameraAmount,
-    });
-    positionB = positionB.add(positionBWobble.mul(positionBNormal));
+  //   const positionBWobble = getWobble({
+  //     pos: positionB,
+  //     steppedToCameraAmount: steppedToCameraAmount,
+  //   });
+  //   positionB = positionB.add(positionBWobble.mul(positionBNormal));
 
-    // Compute normal
-    const toA = positionA.sub(positionNode).normalize();
-    const toB = positionB.sub(positionNode).normalize();
-    const normalNode = cross(toA, toB).normalize();
+  //   // Compute normal
+  //   const toA = positionA.sub(positionNode).normalize();
+  //   const toB = positionB.sub(positionNode).normalize();
+  //   const normalNode = cross(toA, toB).normalize();
 
-    return {
-      positionNode: positionNode,
-      normalNode: normalNode,
-      colorNode: normalLocal,
-    };
-  });
+  //   return {
+  //     positionNode: positionNode,
+  //     normalNode: normalNode,
+  //     colorNode: normalLocal,
+  //   };
+  // });
 
-  useFrame((state) => {
-    state.uniforms.uTimeTime.value = state.elapsed;
-  });
+  useNodes(() => makeOrbNodes(uniforms), "orb");
+
+  // useFrame((state) => {
+  //   state.uniforms.uTimeTime.value = state.elapsed;
+  // });
 
   return (
     <>
       <Suspense fallback={null}>
         <ambientLight intensity={0.5} />
-        <Orb position={[0, 0, -2.3]} nodes={nodes} />
+        <Orb position={[0, 0, -2.3]} />
       </Suspense>
       <BasicBoundsBoxBaybee boxArgs={[3.0, 3.0, 1.25]} />
       <DebugOrbitControls minDistance={10} maxDistance={50} enableRotate />
@@ -220,11 +228,11 @@ export default function ArchdukeVonOrbenScene() {
         }}
         renderer={{
           inspector: inspector,
-          // shadowMap: {
-          //   enabled: true,
-          //   type: THREE.PCFShadowMap,
-          //   transmitted: true,
-          // },
+          shadowMap: {
+            enabled: true,
+            type: THREE.PCFShadowMap,
+            transmitted: true,
+          },
           // shadows: {
           //   enabled: true,
           //   type: THREE.PCFShadowMap,

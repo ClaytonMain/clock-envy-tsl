@@ -1,3 +1,4 @@
+import { useNodes } from "@react-three/tsl";
 import { useSpring } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
@@ -5,15 +6,13 @@ import * as THREE from "three/webgpu";
 import useAppStore from "../../../stores/useAppStore";
 import { SPRING_CONFIGS } from "./constants/constants";
 import useArchdukeVonOrbenStore from "./stores/useArchdukeVonOrbenStore";
-import type { NodesType } from "./types/types.tsx";
 
 export default function Orb({
   position = [0, 0, 0],
-  nodes,
 }: {
   position?: [number, number, number];
-  nodes: NodesType;
 }) {
+  const orbNodes = useNodes("orb");
   const formatHours24 = useAppStore((state) => state.formatHours24);
   // const reflectorRef = useRef<THREE.Mesh>(null!);
   // const csmRef = useRef<CSM<typeof THREE.MeshPhysicalMaterial>>(null!);
@@ -99,11 +98,7 @@ export default function Orb({
     <>
       <group position={position}>
         <mesh ref={orbRef} geometry={orbGeometry} castShadow receiveShadow>
-          <meshStandardNodeMaterial
-            positionNode={nodes.positionNode}
-            normalNode={nodes.normalNode}
-            colorNode={nodes.colorNode}
-          />
+          <meshStandardNodeMaterial {...orbNodes} />
         </mesh>
       </group>
     </>
