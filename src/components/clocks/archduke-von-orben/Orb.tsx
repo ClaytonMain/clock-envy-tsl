@@ -98,6 +98,7 @@ export default function Orb({
     <>
       <group position={position}>
         <mesh ref={orbRef} geometry={orbGeometry} castShadow receiveShadow>
+          {/* @ts-expect-error `meshStandardNodeMaterial` the extra props inside orbNodes are fine */}
           <meshStandardNodeMaterial {...orbNodes} />
         </mesh>
       </group>

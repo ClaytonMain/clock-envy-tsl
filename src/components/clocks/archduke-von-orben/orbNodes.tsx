@@ -11,7 +11,6 @@ import {
   pow,
   smoothstep,
   tangentLocal,
-  time,
   uniform,
   varying,
   vec3,
@@ -24,7 +23,7 @@ export function makeOrbUniforms() {
     orbMass: uniform(5000.0),
     orbDecayFactor: uniform(0.08),
     // Misc.
-    uTimeTime: uniform(0.00002),
+    uTime: uniform(0),
     uBasePosFreq: uniform(3.15),
     uBaseTimeFreq: uniform(0.02),
     uBaseStrength: uniform(0.06),
@@ -59,23 +58,17 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos,
       norm,
       steppedToCameraAmount,
-      _time,
-      _uBaseTimeFreq,
-      _uBasePosFreq,
       _uBaseStrength,
     }: {
       pos: THREE.Node<"vec3">;
       norm: THREE.Node<"vec3">;
       steppedToCameraAmount: THREE.Node<"float">;
-      _time: THREE.Node<"float">;
-      _uBaseTimeFreq: THREE.Node<"float">;
-      _uBasePosFreq: THREE.Node<"float">;
       _uBaseStrength: THREE.Node<"float">;
     }) => {
       const adjustedPos = pos.add(
-        vec3(0, 0, _time.mul(_uBaseTimeFreq.mul(0.15))),
+        vec3(0, 0, u.uTime.mul(u.uBaseTimeFreq.mul(0.15))),
       );
-      const wobble = mx_noise_float(adjustedPos.mul(_uBasePosFreq)).mul(
+      const wobble = mx_noise_float(adjustedPos.mul(u.uBasePosFreq)).mul(
         _uBaseStrength,
       );
 
@@ -88,9 +81,6 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos: "vec3",
       norm: "vec3",
       steppedToCameraAmount: "float",
-      _time: "float",
-      _uBaseTimeFreq: "float",
-      _uBasePosFreq: "float",
       _uBaseStrength: "float",
       return: "vec3",
     },
@@ -126,27 +116,18 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos: position0,
       norm: normal,
       steppedToCameraAmount,
-      _time: time,
-      _uBaseTimeFreq: u.uBaseTimeFreq,
-      _uBasePosFreq: u.uBasePosFreq,
       _uBaseStrength: u.uBaseStrength,
     });
     const wobbleA = getWobble({
       pos: positionA,
       norm: normal,
       steppedToCameraAmount,
-      _time: time,
-      _uBaseTimeFreq: u.uBaseTimeFreq,
-      _uBasePosFreq: u.uBasePosFreq,
       _uBaseStrength: u.uBaseStrength,
     });
     const wobbleB = getWobble({
       pos: positionB,
       norm: normal,
       steppedToCameraAmount,
-      _time: time,
-      _uBaseTimeFreq: u.uBaseTimeFreq,
-      _uBasePosFreq: u.uBasePosFreq,
       _uBaseStrength: u.uBaseStrength,
     });
 
