@@ -58,6 +58,7 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos,
       norm,
       steppedToCameraAmount,
+      // TODO: Figure out why this specific uniform can't be accessed like the other uniforms.
       _uBaseStrength,
     }: {
       pos: THREE.Node<"vec3">;
