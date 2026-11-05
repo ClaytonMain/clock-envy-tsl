@@ -60,29 +60,35 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       steppedToCameraAmount,
       // TODO: Figure out why this specific uniform can't be accessed like the other uniforms.
       _uBaseStrength,
+      _uSBaseStrength,
     }: {
       pos: THREE.Node<"vec3">;
       norm: THREE.Node<"vec3">;
       steppedToCameraAmount: THREE.Node<"float">;
       _uBaseStrength: THREE.Node<"float">;
+      _uSBaseStrength: THREE.Node<"float">;
     }) => {
       const adjustedPos = pos.add(
-        vec3(0, 0, u.uTime.mul(u.uBaseTimeFreq.mul(0.15))),
+        vec3(0, 0, u.uTime.mul(u.uBaseTimeFreq.mul(0.015))),
       );
       const wobble = mx_noise_float(adjustedPos.mul(u.uBasePosFreq)).mul(
         _uBaseStrength,
       );
+      const sWobble = mx_noise_float(
+        adjustedPos.add(vec3(0, 0, u.uSTime.mul(0.01))).mul(u.uSBasePosFreq),
+      ).mul(_uSBaseStrength);
 
       wobble.mulAssign(steppedToCameraAmount.mul(0.5));
       wobble.addAssign(0.5);
 
-      return pos.add(wobble.mul(norm));
+      return pos.add(wobble.add(sWobble).mul(norm));
     },
     {
       pos: "vec3",
       norm: "vec3",
       steppedToCameraAmount: "float",
       _uBaseStrength: "float",
+      _uSBaseStrength: "float",
       return: "vec3",
     },
   );
@@ -118,18 +124,21 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       norm: normal,
       steppedToCameraAmount,
       _uBaseStrength: u.uBaseStrength,
+      _uSBaseStrength: u.uSBaseStrength,
     });
     const wobbleA = getWobble({
       pos: positionA,
       norm: normal,
       steppedToCameraAmount,
       _uBaseStrength: u.uBaseStrength,
+      _uSBaseStrength: u.uSBaseStrength,
     });
     const wobbleB = getWobble({
       pos: positionB,
       norm: normal,
       steppedToCameraAmount,
       _uBaseStrength: u.uBaseStrength,
+      _uSBaseStrength: u.uSBaseStrength,
     });
 
     // Compute normal.
