@@ -58,42 +58,54 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos,
       norm,
       steppedToCameraAmount,
-      // TODO: Figure out why this specific uniform can't be accessed like the other uniforms.
-      _uBaseStrength,
-      _uSBaseStrength,
+      vBaseStrength,
+      vSBaseStrength,
+      vBasePosFreq,
+      vSBasePosFreq,
     }: {
       pos: THREE.Node<"vec3">;
       norm: THREE.Node<"vec3">;
       steppedToCameraAmount: THREE.Node<"float">;
-      _uBaseStrength: THREE.Node<"float">;
-      _uSBaseStrength: THREE.Node<"float">;
+      vBaseStrength: THREE.Node<"float">;
+      vSBaseStrength: THREE.Node<"float">;
+      vBasePosFreq: THREE.Node<"float">;
+      vSBasePosFreq: THREE.Node<"float">;
     }) => {
       const adjustedPos = pos.add(
-        vec3(0, 0, u.uTime.mul(u.uBaseTimeFreq.mul(0.015))),
+        vec3(0, 0, u.uTime.mul(u.uBaseTimeFreq.mul(0.15))),
       );
-      const wobble = mx_noise_float(adjustedPos.mul(u.uBasePosFreq)).mul(
-        _uBaseStrength,
+      const wobble = mx_noise_float(adjustedPos.mul(vBasePosFreq)).mul(
+        vBaseStrength,
       );
       const sWobble = mx_noise_float(
-        adjustedPos.add(vec3(0, 0, u.uSTime.mul(0.01))).mul(u.uSBasePosFreq),
-      ).mul(_uSBaseStrength);
+        adjustedPos
+          .add(vec3(0, 0, u.uSTime.mul(u.uSBaseTimeFreq.mul(0.1))))
+          .mul(vSBasePosFreq),
+      ).mul(vSBaseStrength);
 
+      wobble.addAssign(sWobble);
       wobble.mulAssign(steppedToCameraAmount.mul(0.5));
       wobble.addAssign(0.5);
 
-      return pos.add(wobble.add(sWobble).mul(norm));
+      return pos.add(wobble.mul(norm));
     },
     {
       pos: "vec3",
       norm: "vec3",
       steppedToCameraAmount: "float",
-      _uBaseStrength: "float",
-      _uSBaseStrength: "float",
+      vBaseStrength: "float",
+      vSBaseStrength: "float",
+      vBasePosFreq: "float",
+      vSBasePosFreq: "float",
       return: "vec3",
     },
   );
 
   const vNormal = varying(vec3(0, 0, 0), "vNormal");
+  const vBaseStrength = varying(u.uBaseStrength, "vBaseStrength");
+  const vSBaseStrength = varying(u.uSBaseStrength, "vSBaseStrength");
+  const vBasePosFreq = varying(u.uBasePosFreq, "vBasePosFreq");
+  const vSBasePosFreq = varying(u.uSBasePosFreq, "vSBasePosFreq");
 
   const positionNode = Fn(() => {
     // Get positions for position node & neighbors for normal calculation.
@@ -123,22 +135,28 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
       pos: position0,
       norm: normal,
       steppedToCameraAmount,
-      _uBaseStrength: u.uBaseStrength,
-      _uSBaseStrength: u.uSBaseStrength,
+      vBaseStrength: vBaseStrength,
+      vSBaseStrength: vSBaseStrength,
+      vBasePosFreq: vBasePosFreq,
+      vSBasePosFreq: vSBasePosFreq,
     });
     const wobbleA = getWobble({
       pos: positionA,
       norm: normal,
       steppedToCameraAmount,
-      _uBaseStrength: u.uBaseStrength,
-      _uSBaseStrength: u.uSBaseStrength,
+      vBaseStrength: vBaseStrength,
+      vSBaseStrength: vSBaseStrength,
+      vBasePosFreq: vBasePosFreq,
+      vSBasePosFreq: vSBasePosFreq,
     });
     const wobbleB = getWobble({
       pos: positionB,
       norm: normal,
       steppedToCameraAmount,
-      _uBaseStrength: u.uBaseStrength,
-      _uSBaseStrength: u.uSBaseStrength,
+      vBaseStrength: vBaseStrength,
+      vSBaseStrength: vSBaseStrength,
+      vBasePosFreq: vBasePosFreq,
+      vSBasePosFreq: vSBasePosFreq,
     });
 
     // Compute normal.
@@ -155,6 +173,5 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
   return {
     positionNode: positionNode,
     normalNode: normalNode,
-    // outputNode: biTangent.dot(vec3(0, 0, 1)),
   };
 }

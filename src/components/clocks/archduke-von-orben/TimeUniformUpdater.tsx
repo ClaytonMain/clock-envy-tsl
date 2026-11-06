@@ -160,10 +160,10 @@ export default function TimeUniformUpdater() {
       velocityRef.current * (1 - u.orbDecayFactor.value * delta),
     );
 
-    u.uTime.value += velocityRef.current * delta;
-    u.uHTime.value += hSpring.getVelocity() * delta;
-    u.uMTime.value += mSpring.getVelocity() * delta;
-    u.uSTime.value += sSpring.getVelocity() * delta;
+    u.uTime.value += velocityRef.current;
+    u.uHTime.value += hSpring.getVelocity() + delta;
+    u.uMTime.value += mSpring.getVelocity() + delta;
+    u.uSTime.value += sSpring.getVelocity() + delta;
   });
   return null;
 }
