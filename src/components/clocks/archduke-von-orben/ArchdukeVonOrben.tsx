@@ -1,5 +1,5 @@
 import { Canvas, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three/webgpu";
 // import useAppStore from "../../../stores/useAppStore";
 import BasicBoundsBoxBaybee from "../../misc/BasicBoundsBoxBaybee";
@@ -8,9 +8,11 @@ import { Inspector } from "three/addons/inspector/Inspector.js";
 import DebugOrbitControls from "../../misc/DebugOrbitControls";
 // import Digits from "./Digits";
 // import Hand from "./Hand";
+import { Environment } from "@react-three/drei";
 import { useNodes, useUniforms } from "@react-three/tsl";
+import { makeHandNodes, makeOrbNodes, makeOrbUniforms } from "./archdukeNodes";
+import Hand from "./Hand";
 import Orb from "./Orb";
-import { makeOrbNodes, makeOrbUniforms } from "./orbNodes";
 import TimeUniformUpdater from "./TimeUniformUpdater";
 
 function Scene() {
@@ -55,14 +57,42 @@ function Scene() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderer]);
 
-  useNodes(() => makeOrbNodes(uniforms), "orb");
+  const orbNodes = useNodes(() => makeOrbNodes(uniforms), "orb");
+  const handNodes = useNodes(() => makeHandNodes(uniforms), "hand");
+
+  const { scene } = useThree();
+
+  const didEnvironmentRebuild = useRef(false);
+  useEffect(() => {
+    if (didEnvironmentRebuild.current) return;
+
+    // If scene.environment.isTexture, rebuild nodes and stop interval
+    const timerId = setInterval(() => {
+      if (scene.environment?.isTexture) {
+        didEnvironmentRebuild.current = true;
+        orbNodes.rebuildNodes();
+        handNodes.rebuildNodes();
+        clearInterval(timerId);
+      }
+    }, 1000); // Check every 1s
+    return () => clearInterval(timerId);
+  }, [scene.environment, orbNodes, handNodes]);
 
   return (
     <>
       <Suspense fallback={null}>
+        <Environment
+          files="./environments/warm_reception_dinner_1k.hdr"
+          resolution={1024}
+        />
         <ambientLight intensity={0.5} />
-        <TimeUniformUpdater />
-        <Orb position={[0, 0, -2.3]} />
+        {orbNodes && (
+          <>
+            <TimeUniformUpdater />
+            <Orb position={[0, 0, -2.3]} />
+            <Hand hms="s" radius={1.3} color={"#deeadd"} />
+          </>
+        )}
       </Suspense>
       <BasicBoundsBoxBaybee boxArgs={[3.0, 3.0, 1.25]} />
       <DebugOrbitControls minDistance={10} maxDistance={50} enableRotate />

@@ -164,7 +164,12 @@ export default function TimeUniformUpdater() {
     u.uHTime.value += hSpring.getVelocity() + delta;
     u.uMTime.value += mSpring.getVelocity() + delta;
     u.uSTime.value += sSpring.getVelocity() + delta;
+
+    u.uHArcLengthPercent.value = hTimeLenPctRef.current;
+    u.uMArcLengthPercent.value = mTimeLenPctRef.current;
+    u.uSArcLengthPercent.value = sTimeLenPctRef.current;
   });
+
   return null;
 }
 

@@ -3,12 +3,18 @@
 // this implementation.
 
 import {
+  atan,
+  attribute,
   dot,
+  EPSILON,
   Fn,
+  If,
   mx_noise_float,
   normalLocal,
+  PI,
   positionLocal,
   pow,
+  rotate,
   smoothstep,
   tangentLocal,
   uniform,
@@ -44,6 +50,9 @@ export function makeOrbUniforms() {
     uSBaseStrength: uniform(0.04),
     // More misc.
     uShift: uniform(0.01),
+    uHArcLengthPercent: uniform(1),
+    uMArcLengthPercent: uniform(1),
+    uSArcLengthPercent: uniform(1),
   };
 }
 
@@ -173,5 +182,30 @@ export function makeOrbNodes(inUniforms?: OrbUniforms) {
   return {
     positionNode: positionNode,
     normalNode: normalNode,
+  };
+}
+
+export function makeHandNodes(inUniforms?: OrbUniforms) {
+  const uniforms = inUniforms ?? makeOrbUniforms();
+  const u = uniforms;
+
+  const positionNode = Fn(() => {
+    const baseAngle = atan(
+      positionLocal.y.negate().sub(EPSILON),
+      positionLocal.x.negate().sub(EPSILON),
+    ).add(PI);
+    const aArcLengthPercent = attribute("aArcLengthPercent", "int");
+    const angle = baseAngle.mul(u.uHArcLengthPercent.oneMinus());
+    If(aArcLengthPercent.equal(1), () => {
+      angle.assign(baseAngle.mul(u.uMArcLengthPercent.oneMinus()));
+    });
+    If(aArcLengthPercent.equal(2), () => {
+      angle.assign(baseAngle.mul(u.uSArcLengthPercent.oneMinus()));
+    });
+
+    return positionLocal;
+  })();
+  return {
+    positionNode: positionNode,
   };
 }

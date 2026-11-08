@@ -100,10 +100,12 @@ export default function Orb({
         <mesh ref={orbRef} geometry={orbGeometry} castShadow receiveShadow>
           <meshPhysicalNodeMaterial
             {...orbNodes}
-            metalness={0.8}
-            roughness={0.2}
-            reflectivity={0.5}
-            color={0xaaaaaa}
+            color={0x000}
+            roughness={0.1}
+            metalness={0.7}
+            reflectivity={0.2}
+            clearcoat={0.3}
+            clearcoatRoughness={0.01}
           />
         </mesh>
       </group>
