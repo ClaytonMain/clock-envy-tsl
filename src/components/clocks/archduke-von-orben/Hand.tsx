@@ -49,7 +49,7 @@ export default function Hand({
   useEffect(() => {
     if (torusRef.current) {
       torusRef.current.geometry.setAttribute(
-        "aArcLengthPercent",
+        "aHMSId",
         new THREE.BufferAttribute(
           new Float32Array(
             torusRef.current.geometry.attributes.position.count,

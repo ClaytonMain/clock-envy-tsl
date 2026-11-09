@@ -9,6 +9,7 @@ import {
   EPSILON,
   Fn,
   If,
+  min,
   mx_noise_float,
   normalLocal,
   PI,
@@ -17,6 +18,7 @@ import {
   rotate,
   smoothstep,
   tangentLocal,
+  transformNormalToView,
   uniform,
   varying,
   vec3,
@@ -189,23 +191,35 @@ export function makeHandNodes(inUniforms?: OrbUniforms) {
   const uniforms = inUniforms ?? makeOrbUniforms();
   const u = uniforms;
 
+  const vNormal = varying(normalLocal);
+
   const positionNode = Fn(() => {
     const baseAngle = atan(
       positionLocal.y.negate().sub(EPSILON),
       positionLocal.x.negate().sub(EPSILON),
     ).add(PI);
-    const aArcLengthPercent = attribute("aArcLengthPercent", "int");
-    const angle = baseAngle.mul(u.uHArcLengthPercent.oneMinus());
-    If(aArcLengthPercent.equal(1), () => {
-      angle.assign(baseAngle.mul(u.uMArcLengthPercent.oneMinus()));
+    const aHMSId = attribute("aHMSId", "int");
+    const angle = baseAngle.mul(min(1, u.uHArcLengthPercent.oneMinus()));
+    If(aHMSId.equal(1), () => {
+      angle.assign(baseAngle.mul(min(1, u.uMArcLengthPercent.oneMinus())));
     });
-    If(aArcLengthPercent.equal(2), () => {
-      angle.assign(baseAngle.mul(u.uSArcLengthPercent.oneMinus()));
+    If(aHMSId.equal(2), () => {
+      angle.assign(baseAngle.mul(min(1, u.uSArcLengthPercent.oneMinus())));
     });
 
-    return positionLocal;
+    const rotated = rotate(positionLocal, vec3(0, 0, angle.negate()));
+
+    vNormal.assign(
+      transformNormalToView(rotate(normalLocal, vec3(0, 0, angle.negate()))),
+    );
+
+    return rotated;
   })();
+
+  const normalNode = vNormal;
+
   return {
     positionNode: positionNode,
+    normalNode: normalNode,
   };
 }
